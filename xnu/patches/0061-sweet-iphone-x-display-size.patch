@@ -36,7 +36,7 @@
 +	PE_parse_boot_argn("sweetfb_native", &native, sizeof(native));
 +	fLogicalW = fWidth;
 +	fLogicalH = fHeight;
-+	if (!native && fWidth <= SWEET_FB_LOGICAL_W && fHeight <= SWEET_FB_LOGICAL_H) {
++	if (!native && fWidth <= SWEET_FB_LOGICAL_W && fHeight <= SWEET_FB_LOGICAL_H + 64) { /* hanoip: panel 1080x2460 */
 +		fLogicalW = SWEET_FB_LOGICAL_W;
 +		fLogicalH = SWEET_FB_LOGICAL_H;
 +	}
