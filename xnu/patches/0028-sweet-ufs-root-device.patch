@@ -41,7 +41,7 @@ diff --git a/bsd/dev/sweet_ufs.c b/bsd/dev/sweet_ufs.c
 new file mode 100644
 --- /dev/null
 +++ b/bsd/dev/sweet_ufs.c
-@@ -0,0 +1,536 @@
+@@ -0,0 +1,538 @@
 +/*
 + * SWEET internal UFS root device (read-only).
 + *
@@ -526,7 +526,9 @@ new file mode 100644
 +		return ENOMEM;
 +	}
 +	su.dma_pa = ptoa_64(pn);
-+	su.lun = 0;
++	uint32_t lun = 0;
++	PE_parse_boot_argn("ufslun", &lun, sizeof(lun));
++	su.lun = (uint8_t)lun;
 +	su.secsize = DEV_BSIZE;
 +
 +	lck_mtx_lock(&sweet_ufs_lock);

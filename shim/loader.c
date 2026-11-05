@@ -84,11 +84,26 @@ const char *loader_boot(uintptr_t dtb)
 	    !fdt_chosen_u64(dtb, "linux,initrd-end", &rd_end))
 		return "no initrd in /chosen";
 	con_hex2("INITRD", "lo=", rd_start, "hi=", rd_end);
+	/*
+	 * hanoip's ABL prepends a small header to the ramdisk before our payload
+	 * (a ~0x198-byte blob starting with a gzip magic), so locate the payload
+	 * by its magic rather than assuming it starts at linux,initrd-start.
+	 */
+	uintptr_t n = rd_end - rd_start, off = 0;
+	if (!magic_ok((const char *)rd_start)) {
+		for (off = 8; off + 8 <= n; off += 8)
+			if (magic_ok((const char *)(rd_start + off)))
+				break;
+		if (off + 8 > n)
+			off = 0;
+	}
+	con_hex("RDOFF", off);
+	const uintptr_t rd = rd_start + off;
 
-	const struct payload *p = (const struct payload *)rd_start;
+	const struct payload *p = (const struct payload *)rd;
 	if (!magic_ok(p->magic))
 		return "no SWEETXNU payload";
-	if (p->version != 1 || (p->adt_off & 7) || (rd_start & 7))
+	if (p->version != 1 || (p->adt_off & 7) || (rd & 7))
 		return "bad payload header";
 
 	uint64_t pa_of_va_base = p->phys_base - p->virt_base;	/* pa = va + this */
@@ -103,7 +118,7 @@ const char *loader_boot(uintptr_t dtb)
 	for (uint32_t i = 0; i < p->nsegs; i++) {
 		const struct payload_seg *s = &p->segs[i];
 		uintptr_t dst = s->vmaddr + pa_of_va_base;
-		copy64(dst, rd_start + s->file_off, s->file_size);
+		copy64(dst, rd + s->file_off, s->file_size);
 		if (s->vmsize > s->file_size)
 			zero64(dst + ((s->file_size + 7) & ~7UL), s->vmsize - ((s->file_size + 7) & ~7UL));
 	}
@@ -111,7 +126,7 @@ const char *loader_boot(uintptr_t dtb)
 
 	/* ADT, then boot_args, behind the kernel; everything below topOfKernelData is ours. */
 	uintptr_t adt_pa = p->kernel_end + pa_of_va_base;
-	copy64(adt_pa, rd_start + p->adt_off, p->adt_size);
+	copy64(adt_pa, rd + p->adt_off, p->adt_size);
 	uintptr_t ba_pa = (adt_pa + p->adt_size + PAGE_16K - 1) & ~(PAGE_16K - 1);
 	uintptr_t top = ba_pa + PAGE_16K;
 
